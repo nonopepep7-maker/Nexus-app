@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>World Time — Global Clock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Share+Tech+Mono&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   #111118;
+    --card:      #14141e;
+    --border:    #2a2a3a;
+    --gold:      #c9a84c;
+    --gold-dim:  #7a5f25;
+    --cream:     #f0e6cc;
+    --muted:     #5a5a72;
+    --glow:      rgba(201,168,76,0.18);
+    --white:     #ffffff;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--cream);
+    font-family: 'Cormorant Garamond', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── background texture ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(201,168,76,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 10% 80%, rgba(100,80,200,0.05) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 80%, rgba(201,168,76,0.04) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* ── noise overlay ── */
+  body::after {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 180px;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 2rem 5rem; }
+
+  /* ── HEADER ── */
+  header {
+    text-align: center;
+    padding: 4rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+    position: relative;
+  }
+
+  .header-eyebrow {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.45em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 1.2rem;
+    opacity: 0.9;
+    animation: fadeDown 0.8s ease both;
+  }
+
+  header h1 {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(2.4rem, 6vw, 4.8rem);
+    font-weight: 400;
+    letter-spacing: 0.15em;
+    color: var(--cream);
+    line-height: 1.1;
+    animation: fadeDown 0.9s 0.1s ease both;
+  }
+
+  header h1 span { color: var(--gold); font-style: italic; font-family: 'Cormorant Garamond', serif; }
+
+  .header-sub {
+    font-size: 1rem;
+    font-weight: 300;
+    color: var(--muted);
+    margin-top: 1rem;
+    letter-spacing: 0.05em;
+    font-style: italic;
+    animation: fadeDown 1s 0.2s ease both;
+  }
+
+  /* UTC bar */
+  .utc-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 2rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    animation: fadeDown 1.1s 0.3s ease both;
+  }
+  .utc-bar .live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #4dff91;
+    box-shadow: 0 0 10px #4dff91;
+    animation: pulse-dot 1.5s infinite;
+    display: inline-block;
+  }
+  #utc-now { color: var(--cream); }
+
+  /* ── SEARCH ── */
+  .search-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    animation: fadeDown 1.2s 0.4s ease both;
+  }
+  .search-row input {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--cream);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    padding: 0.7rem 1.2rem;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+  .search-row input::placeholder { color: var(--muted); font-style: italic; }
+  .search-row input:focus { border-color: var(--gold-dim); }
+
+  /* ── GRID ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.4rem;
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.5rem 1.6rem 1.4rem;
+    position: relative;
+    overflow: hidden;
+    cursor: default;
+    transition: transform 0.35s cubic-bezier(.22,.68,0,1.2), border-color 0.3s, box-shadow 0.3s;
+    animation: cardIn 0.6s ease both;
+  }
+  .card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .card:hover { transform: translateY(-5px); border-color: var(--gold-dim); box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 24px var(--glow); }
+  .card:hover::before { opacity: 1; }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  .flag { font-size: 1.9rem; line-height: 1; }
+
+  .tz-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    color: var(--gold);
+    background: rgba(201,168,76,0.08);
+    border: 1px solid var(--gold-dim);
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    opacity: 0.85;
+  }
+
+  .city-name {
+    font-family: 'Cinzel', serif;
+    font-size: 1.15rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: var(--cream);
+    margin-bottom: 0.15rem;
+  }
+  .country-name {
+    font-size: 0.85rem;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+
+  /* analog clock */
+  .analog {
+    width: 80px; height: 80px;
+    margin: 1.2rem auto 1.1rem;
+    position: relative;
+  }
+  .analog svg { width: 100%; height: 100%; }
+  .clock-face { fill: none; stroke: var(--border); stroke-width: 1.5; }
+  .clock-mark { stroke: var(--muted); stroke-width: 1; }
+  .clock-mark-h { stroke: var(--gold-dim); stroke-width: 1.5; }
+  .hand-h { stroke: var(--gold); stroke-width: 2.5; stroke-linecap: round; transition: transform 0.5s cubic-bezier(.4,2.5,.6,1); transform-origin: 40px 40px; }
+  .hand-m { stroke: var(--cream); stroke-width: 1.8; stroke-linecap: round; transition: transform 0.5s cubic-bezier(.4,2.5,.6,1); transform-origin: 40px 40px; }
+  .hand-s { stroke: #e05050; stroke-width: 1; stroke-linecap: round; transform-origin: 40px 40px; }
+  .center-dot { fill: var(--gold); }
+
+  /* digital */
+  .digital-time {
+    text-align: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 2rem;
+    letter-spacing: 0.06em;
+    color: var(--cream);
+    line-height: 1;
+  }
+  .digital-time .colon { color: var(--gold); animation: blink 1s step-end infinite; }
+  .digital-date {
+    text-align: center;
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-top: 0.4rem;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* divider */
+  .card-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 1rem 0 0.8rem;
+  }
+
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .utc-offset {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .day-night {
+    font-size: 1rem;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.7); }
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.2; }
+  }
+
+  /* stagger cards */
+  .card:nth-child(1)  { animation-delay: 0.05s; }
+  .card:nth-child(2)  { animation-delay: 0.10s; }
+  .card:nth-child(3)  { animation-delay: 0.15s; }
+  .card:nth-child(4)  { animation-delay: 0.20s; }
+  .card:nth-child(5)  { animation-delay: 0.25s; }
+  .card:nth-child(6)  { animation-delay: 0.30s; }
+  .card:nth-child(7)  { animation-delay: 0.35s; }
+  .card:nth-child(8)  { animation-delay: 0.40s; }
+  .card:nth-child(9)  { animation-delay: 0.45s; }
+  .card:nth-child(10) { animation-delay: 0.50s; }
+  .card:nth-child(11) { animation-delay: 0.55s; }
+  .card:nth-child(12) { animation-delay: 0.60s; }
+  .card:nth-child(13) { animation-delay: 0.65s; }
+  .card:nth-child(14) { animation-delay: 0.70s; }
+  .card:nth-child(15) { animation-delay: 0.75s; }
+  .card:nth-child(16) { animation-delay: 0.80s; }
+  .card:nth-child(17) { animation-delay: 0.85s; }
+  .card:nth-child(18) { animation-delay: 0.90s; }
+  .card:nth-child(19) { animation-delay: 0.95s; }
+  .card:nth-child(20) { animation-delay: 1.00s; }
+
+  .no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 4rem;
+    color: var(--muted);
+    font-style: italic;
+    font-size: 1.2rem;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+
+  /* footer */
+  .site-footer {
+    text-align: center;
+    padding: 2.5rem 0 1rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    font-family: 'Share Tech Mono', monospace;
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+  }
+  .site-footer span { color: var(--gold); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="header-eyebrow">✦ Live Global Time Tracker ✦</div>
+    <h1>WORLD <span>Time</span></h1>
+    <p class="header-sub">Every meridian. Every moment. Perfectly in sync.</p>
+    <div class="utc-bar">
+      <span><span class="live-dot"></span>&nbsp; LIVE</span>
+      <span>UTC &mdash; <span id="utc-now">--:--:--</span></span>
+      <span id="utc-date">---</span>
+    </div>
+  </header>
+
+  <div class="search-row">
+    <input id="search" type="text" placeholder="Search city or country…" autocomplete="off" />
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <footer class="site-footer">
+    Handcrafted with precision &mdash; <span>World Time</span> &mdash; All times update every second
+  </footer>
+
+</div>
+
+<script>
+const CITIES = [
+  { city: "New York",     country: "United States",    flag: "🇺🇸", tz: "America/New_York",        offset: "UTC−05/−04" },
+  { city: "Los Angeles",  country: "United States",    flag: "🇺🇸", tz: "America/Los_Angeles",     offset: "UTC−08/−07" },
+  { city: "London",       country: "United Kingdom",   flag: "🇬🇧", tz: "Europe/London",           offset: "UTC+00/+01" },
+  { city: "Paris",        country: "France",            flag: "🇫🇷", tz: "Europe/Paris",            offset: "UTC+01/+02" },
+  { city: "Berlin",       country: "Germany",           flag: "🇩🇪", tz: "Europe/Berlin",           offset: "UTC+01/+02" },
+  { city: "Moscow",       country: "Russia",            flag: "🇷🇺", tz: "Europe/Moscow",           offset: "UTC+03" },
+  { city: "Dubai",        country: "UAE",               flag: "🇦🇪", tz: "Asia/Dubai",              offset: "UTC+04" },
+  { city: "Kathmandu",    country: "Nepal",             flag: "🇳🇵", tz: "Asia/Kathmandu",          offset: "UTC+05:45" },
+  { city: "Mumbai",       country: "India",             flag: "🇮🇳", tz: "Asia/Kolkata",            offset: "UTC+05:30" },
+  { city: "Dhaka",        country: "Bangladesh",        flag: "🇧🇩", tz: "Asia/Dhaka",              offset: "UTC+06" },
+  { city: "Bangkok",      country: "Thailand",          flag: "🇹🇭", tz: "Asia/Bangkok",            offset: "UTC+07" },
+  { city: "Singapore",    country: "Singapore",         flag: "🇸🇬", tz: "Asia/Singapore",          offset: "UTC+08" },
+  { city: "Beijing",      country: "China",             flag: "🇨🇳", tz: "Asia/Shanghai",           offset: "UTC+08" },
+  { city: "Tokyo",        country: "Japan",             flag: "🇯🇵", tz: "Asia/Tokyo",              offset: "UTC+09" },
+  { city: "Seoul",        country: "South Korea",       flag: "🇰🇷", tz: "Asia/Seoul",              offset: "UTC+09" },
+  { city: "Sydney",       country: "Australia",         flag: "🇦🇺", tz: "Australia/Sydney",        offset: "UTC+10/+11" },
+  { city: "Auckland",     country: "New Zealand",       flag: "🇳🇿", tz: "Pacific/Auckland",        offset: "UTC+12/+13" },
+  { city: "Cairo",        country: "Egypt",             flag: "🇪🇬", tz: "Africa/Cairo",            offset: "UTC+02/+03" },
+  { city: "Lagos",        country: "Nigeria",           flag: "🇳🇬", tz: "Africa/Lagos",            offset: "UTC+01" },
+  { city: "Nairobi",      country: "Kenya",             flag: "🇰🇪", tz: "Africa/Nairobi",          offset: "UTC+03" },
+  { city: "São Paulo",    country: "Brazil",            flag: "🇧🇷", tz: "America/Sao_Paulo",       offset: "UTC−03" },
+  { city: "Mexico City",  country: "Mexico",            flag: "🇲🇽", tz: "America/Mexico_City",     offset: "UTC−06/−05" },
+  { city: "Toronto",      country: "Canada",            flag: "🇨🇦", tz: "America/Toronto",         offset: "UTC−05/−04" },
+  { city: "Buenos Aires", country: "Argentina",         flag: "🇦🇷", tz: "America/Argentina/Buenos_Aires", offset: "UTC−03" },
+];
+
+const grid = document.getElementById('grid');
+const searchInput = document.getElementById('search');
+
+// Build SVG analog clock markup
+function svgClock(id) {
+  const marks = [];
+  for (let i = 0; i < 60; i++) {
+    const angle = (i * 6) * Math.PI / 180;
+    const isHour = i % 5 === 0;
+    const r1 = isHour ? 31 : 34;
+    const r2 = 37;
+    const x1 = 40 + r1 * Math.sin(angle);
+    const y1 = 40 - r1 * Math.cos(angle);
+    const x2 = 40 + r2 * Math.sin(angle);
+    const y2 = 40 - r2 * Math.cos(angle);
+    marks.push(`<line class="${isHour ? 'clock-mark-h' : 'clock-mark'}" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"/>`);
+  }
+  return `
+  <svg viewBox="0 0 80 80">
+    <circle cx="40" cy="40" r="38" class="clock-face"/>
+    ${marks.join('')}
+    <line id="h-${id}" class="hand-h" x1="40" y1="40" x2="40" y2="18" />
+    <line id="m-${id}" class="hand-m" x1="40" y1="40" x2="40" y2="10" />
+    <line id="s-${id}" class="hand-s" x1="40" y1="44" x2="40" y2="8"  />
+    <circle cx="40" cy="40" r="2.5" class="center-dot"/>
+  </svg>`;
+}
+
+function buildCards(list) {
+  grid.innerHTML = '';
+  if (list.length === 0) {
+    grid.innerHTML = '<div class="no-results">No cities found — try a different search.</div>';
+    return;
+  }
+  list.forEach((c, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.tz  = c.tz;
+    card.dataset.idx = i;
+    card.innerHTML = `
+      <div class="card-top">
+        <span class="flag">${c.flag}</span>
+        <span class="tz-badge">${c.offset}</span>
+      </div>
+      <div class="city-name">${c.city}</div>
+      <div class="country-name">${c.country}</div>
+      <div class="analog">${svgClock(i)}</div>
+      <div class="digital-time" id="dig-${i}">--<span class="colon">:</span>--<span class="colon">:</span>--</div>
+      <div class="digital-date" id="date-${i}">---</div>
+      <div class="card-divider"></div>
+      <div class="card-footer">
+        <span class="utc-offset">${c.offset}</span>
+        <span class="day-night" id="dn-${i}">☀️</span>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function tick() {
+  const now = new Date();
+
+  // UTC header
+  const uh = now.getUTCHours(), um = now.getUTCMinutes(), us = now.getUTCSeconds();
+  document.getElementById('utc-now').textContent = `${pad(uh)}:${pad(um)}:${pad(us)}`;
+  document.getElementById('utc-date').textContent = now.toUTCString().slice(0, 16);
+
+  // Cards
+  const cards = grid.querySelectorAll('.card');
+  cards.forEach(card => {
+    const tz  = card.dataset.tz;
+    const idx = card.dataset.idx;
+
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false,
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+    }).formatToParts(now);
+
+    const get = type => parts.find(p => p.type === type)?.value ?? '00';
+
+    let h = parseInt(get('hour'));
+    const m = parseInt(get('minute'));
+    const s = parseInt(get('second'));
+
+    // Analog
+    const sdeg = s * 6;
+    const mdeg = m * 6 + s * 0.1;
+    const hdeg = (h % 12) * 30 + m * 0.5;
+
+    const sh = document.getElementById(`h-${idx}`);
+    const sm = document.getElementById(`m-${idx}`);
+    const ss = document.getElementById(`s-${idx}`);
+    if (sh) sh.style.transform = `rotate(${hdeg}deg)`;
+    if (sm) sm.style.transform = `rotate(${mdeg}deg)`;
+    if (ss) ss.style.transform = `rotate(${sdeg}deg)`;
+
+    // Digital
+    const dig = document.getElementById(`dig-${idx}`);
+    if (dig) {
+      dig.innerHTML = `${pad(h)}<span class="colon">:</span>${pad(m)}<span class="colon">:</span>${pad(s)}`;
+    }
+
+    // Date
+    const dateEl = document.getElementById(`date-${idx}`);
+    if (dateEl) {
+      dateEl.textContent = `${get('weekday').toUpperCase()}, ${get('month').toUpperCase()} ${get('day')} ${get('year')}`;
+    }
+
+    // Day/night
+    const dn = document.getElementById(`dn-${idx}`);
+    if (dn) dn.textContent = (h >= 6 && h < 20) ? '☀️' : '🌙';
+  });
+}
+
+// Search
+let filtered = [...CITIES];
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  filtered = q ? CITIES.filter(c =>
+    c.city.toLowerCase().includes(q) || c.country.toLowerCase().includes(q)
+  ) : [...CITIES];
+  buildCards(filtered);
+});
+
+buildCards(CITIES);
+tick();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>

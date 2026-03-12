@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notepad</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #008080;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'MS Sans Serif', 'Microsoft Sans Serif', Tahoma, sans-serif;
+    font-size: 11px;
+    user-select: none;
+  }
+
+  /* ---- Window ---- */
+  .window {
+    width: 640px;
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    box-shadow: 1px 1px 0 #000, inset 0 0 0 1px #dfdfdf;
+    position: relative;
+  }
+
+  /* ---- Title Bar ---- */
+  .title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 18px;
+    background: linear-gradient(to right, #000080, #1084d0);
+    padding: 2px 3px 2px 4px;
+    cursor: default;
+  }
+
+  .title-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .title-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    image-rendering: pixelated;
+  }
+
+  /* notepad SVG icon */
+  .title-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .title-text {
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0;
+    text-shadow: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 360px;
+  }
+
+  .title-buttons {
+    display: flex;
+    gap: 2px;
+  }
+
+  .title-btn {
+    width: 16px;
+    height: 14px;
+    background: #c0c0c0;
+    border: 1px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    color: #000;
+    font-weight: bold;
+    line-height: 1;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .title-btn:active {
+    border-color: #808080 #ffffff #ffffff #808080;
+  }
+
+  .title-btn.close { font-size: 9px; }
+
+  /* ---- Menu Bar ---- */
+  .menu-bar {
+    display: flex;
+    background: #c0c0c0;
+    padding: 2px 0 1px 2px;
+    border-bottom: 1px solid #808080;
+    flex-shrink: 0;
+  }
+
+  .menu-item {
+    padding: 2px 6px;
+    cursor: pointer;
+    color: #000;
+    font-size: 11px;
+    position: relative;
+    white-space: nowrap;
+  }
+
+  .menu-item:hover, .menu-item.active {
+    background: #000080;
+    color: #fff;
+  }
+
+  /* ---- Dropdown menus ---- */
+  .dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    box-shadow: 2px 2px 0 #000;
+    z-index: 100;
+    min-width: 160px;
+    padding: 2px 0;
+  }
+
+  .menu-item.active .dropdown { display: block; }
+
+  .dd-item {
+    padding: 3px 20px 3px 24px;
+    cursor: pointer;
+    color: #000;
+    font-size: 11px;
+    white-space: nowrap;
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .dd-item:hover {
+    background: #000080;
+    color: #fff;
+  }
+
+  .dd-item.disabled {
+    color: #808080;
+    cursor: default;
+  }
+
+  .dd-item.disabled:hover {
+    background: transparent;
+    color: #808080;
+  }
+
+  .dd-sep {
+    height: 1px;
+    margin: 3px 2px;
+    background: #808080;
+    border-bottom: 1px solid #fff;
+  }
+
+  .dd-shortcut {
+    font-size: 11px;
+    opacity: 0.8;
+    margin-left: 10px;
+  }
+
+  .dd-check {
+    position: absolute;
+    left: 6px;
+    font-size: 11px;
+  }
+
+  /* ---- Text Area ---- */
+  .editor-wrap {
+    flex: 1;
+    background: #fff;
+    border: 2px solid;
+    border-color: #808080 #dfdfdf #dfdfdf #808080;
+    margin: 2px;
+    overflow: hidden;
+    display: flex;
+  }
+
+  #editor {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 3px 4px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    resize: none;
+    background: #fff;
+    color: #000;
+    caret-color: #000;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  #editor.no-wrap {
+    white-space: pre;
+    word-wrap: normal;
+    overflow-x: auto;
+  }
+
+  /* ---- Status Bar ---- */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    height: 18px;
+    border-top: 1px solid #808080;
+    padding: 0 4px;
+    flex-shrink: 0;
+    gap: 2px;
+  }
+
+  .status-panel {
+    border: 1px solid;
+    border-color: #808080 #dfdfdf #dfdfdf #808080;
+    padding: 1px 6px;
+    font-size: 11px;
+    color: #000;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+  }
+
+  .status-panel.ln { width: 110px; }
+  .status-panel.zoom { width: 60px; }
+  .status-panel.fill { flex: 1; }
+
+  /* ---- Scrollbar styling (webkit) ---- */
+  #editor::-webkit-scrollbar { width: 16px; height: 16px; }
+  #editor::-webkit-scrollbar-track { background: #c0c0c0; }
+  #editor::-webkit-scrollbar-thumb {
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+  }
+  #editor::-webkit-scrollbar-corner { background: #c0c0c0; }
+  #editor::-webkit-scrollbar-button {
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    width: 16px;
+    height: 16px;
+    display: block;
+  }
+
+  /* ---- Modal dialogs ---- */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: transparent;
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.show { display: flex; }
+
+  .modal {
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    box-shadow: 2px 2px 0 #000;
+    min-width: 260px;
+    max-width: 400px;
+  }
+
+  .modal-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(to right, #000080, #1084d0);
+    padding: 2px 3px 2px 6px;
+    height: 18px;
+  }
+
+  .modal-title-text { color: #fff; font-size: 11px; font-weight: bold; }
+
+  .modal-body {
+    padding: 16px 20px 10px 20px;
+    font-size: 11px;
+    color: #000;
+  }
+
+  .modal-body p { margin-bottom: 10px; line-height: 1.5; }
+
+  .modal-input {
+    width: 100%;
+    border: 2px inset;
+    border-color: #808080 #dfdfdf #dfdfdf #808080;
+    padding: 2px 4px;
+    font-family: inherit;
+    font-size: 11px;
+    outline: none;
+    margin-bottom: 8px;
+    background: #fff;
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 6px 10px 10px;
+  }
+
+  .win-btn {
+    min-width: 75px;
+    height: 23px;
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .win-btn:hover { background: #d0d0d0; }
+  .win-btn:active {
+    border-color: #808080 #ffffff #ffffff #808080;
+  }
+
+  .win-btn.default {
+    border-color: #000 #808080 #808080 #000;
+    box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #808080;
+  }
+
+  /* Find/Replace dialog */
+  .find-modal .modal-body label {
+    display: inline-block;
+    width: 80px;
+    text-align: right;
+    margin-right: 6px;
+    font-size: 11px;
+  }
+
+  .find-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .find-row input {
+    flex: 1;
+    border: 2px inset;
+    border-color: #808080 #dfdfdf #dfdfdf #808080;
+    padding: 2px 4px;
+    font-family: inherit;
+    font-size: 11px;
+    outline: none;
+    background: #fff;
+  }
+
+  .find-options { margin: 6px 0 0 86px; }
+
+  .find-options label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    width: auto !important;
+    text-align: left !important;
+    margin-right: 0 !important;
+  }
+
+  .find-options input[type="checkbox"] { cursor: pointer; }
+
+  /* About */
+  .about-body {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .about-icon { flex-shrink: 0; }
+
+  .about-text p { margin-bottom: 4px; font-size: 11px; }
+
+  /* Font dialog */
+  .font-dialog .modal-body { padding: 10px 12px; }
+  .font-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .font-col { display: flex; flex-direction: column; gap: 2px; }
+  .font-col label { font-size: 11px; margin-bottom: 1px; }
+  .font-list {
+    border: 2px inset;
+    border-color: #808080 #dfdfdf #dfdfdf #808080;
+    background: #fff;
+    height: 80px;
+    overflow-y: auto;
+    padding: 1px;
+  }
+  .font-list-item {
+    padding: 1px 4px;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .font-list-item:hover { background: #000080; color: #fff; }
+  .font-list-item.selected { background: #000080; color: #fff; }
+  .font-input {
+    width: 100%;
+    border: 2px inset;
+    border-color: #808080 #dfdfdf #dfdfdf #808080;
+    padding: 1px 4px;
+    font-size: 11px;
+    outline: none;
+    background: #fff;
+  }
+  .font-preview {
+    border: 2px inset;
+    border-color: #808080 #dfdfdf #dfdfdf #808080;
+    background: #fff;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 6px;
+    font-size: 14px;
+    color: #000;
+  }
+
+  /* Page Setup */
+  .page-setup-modal .modal-body { font-size: 11px; }
+  .ps-group { margin-bottom: 10px; }
+  .ps-group-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #808080;
+    padding-bottom: 2px;
+  }
+  .ps-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .ps-row label { width: 70px; text-align: right; }
+  .ps-row input, .ps-row select {
+    border: 2px inset;
+    border-color: #808080 #dfdfdf #dfdfdf #808080;
+    padding: 1px 4px;
+    font-size: 11px;
+    outline: none;
+    background: #fff;
+    width: 120px;
+  }
+
+  /* context menu */
+  .ctx-menu {
+    display: none;
+    position: fixed;
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    box-shadow: 2px 2px 0 #000;
+    z-index: 300;
+    padding: 2px 0;
+    min-width: 140px;
+  }
+
+  .ctx-menu.show { display: block; }
+
+  .ctx-item {
+    padding: 3px 20px 3px 22px;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+    position: relative;
+  }
+
+  .ctx-item:hover { background: #000080; color: #fff; }
+
+  .ctx-item.disabled { color: #808080; }
+  .ctx-item.disabled:hover { background: transparent; color: #808080; cursor: default; }
+
+  .ctx-sep { height: 1px; margin: 3px 2px; background: #808080; border-bottom: 1px solid #fff; }
+
+  /* Blinking cursor mimic */
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Window dragging */
+  .window { cursor: default; }
+  .title-bar { cursor: move; }
+</style>
+</head>
+<body>
+
+<!-- Context Menu -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item" id="ctxUndo">Undo</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctxCut">Cut</div>
+  <div class="ctx-item" id="ctxCopy">Copy</div>
+  <div class="ctx-item" id="ctxPaste">Paste</div>
+  <div class="ctx-item" id="ctxDelete">Delete</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctxSelectAll">Select All</div>
+</div>
+
+<!-- Find Dialog -->
+<div class="modal-overlay" id="findModal">
+  <div class="modal find-modal" style="min-width:320px">
+    <div class="modal-title">
+      <span class="modal-title-text">Find</span>
+      <button class="title-btn close" onclick="closeModal('findModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="find-row">
+        <label>Find what:</label>
+        <input type="text" id="findInput" autocomplete="off">
+      </div>
+      <div class="find-options">
+        <label><input type="checkbox" id="findCase"> Match case</label>
+        <label style="margin-top:3px"><input type="checkbox" id="findWrap" checked> Wrap around</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="win-btn default" onclick="doFind()">Find Next</button>
+      <button class="win-btn" onclick="closeModal('findModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Replace Dialog -->
+<div class="modal-overlay" id="replaceModal">
+  <div class="modal find-modal" style="min-width:340px">
+    <div class="modal-title">
+      <span class="modal-title-text">Replace</span>
+      <button class="title-btn close" onclick="closeModal('replaceModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="find-row">
+        <label>Find what:</label>
+        <input type="text" id="replaceFind" autocomplete="off">
+      </div>
+      <div class="find-row">
+        <label>Replace with:</label>
+        <input type="text" id="replaceWith" autocomplete="off">
+      </div>
+      <div class="find-options">
+        <label><input type="checkbox" id="replaceCase"> Match case</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="win-btn default" onclick="doReplace(false)">Replace</button>
+      <button class="win-btn" onclick="doReplace(true)">Replace All</button>
+      <button class="win-btn" onclick="closeModal('replaceModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Go To Dialog -->
+<div class="modal-overlay" id="gotoModal">
+  <div class="modal" style="min-width:220px">
+    <div class="modal-title">
+      <span class="modal-title-text">Go To Line</span>
+      <button class="title-btn close" onclick="closeModal('gotoModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>Line number:</p>
+      <input class="modal-input" type="number" id="gotoLine" min="1" value="1">
+    </div>
+    <div class="modal-footer">
+      <button class="win-btn default" onclick="doGoTo()">Go To</button>
+      <button class="win-btn" onclick="closeModal('gotoModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Font Dialog -->
+<div class="modal-overlay" id="fontModal">
+  <div class="modal font-dialog" style="min-width:380px">
+    <div class="modal-title">
+      <span class="modal-title-text">Font</span>
+      <button class="title-btn close" onclick="closeModal('fontModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="font-row">
+        <div class="font-col" style="flex:2">
+          <label>Font:</label>
+          <input class="font-input" type="text" id="fontFamilyInput" value="Courier New">
+          <div class="font-list" id="fontFamilyList"></div>
+        </div>
+        <div class="font-col" style="flex:1">
+          <label>Font style:</label>
+          <input class="font-input" type="text" id="fontStyleInput" value="Regular">
+          <div class="font-list" id="fontStyleList">
+            <div class="font-list-item selected" onclick="selectFontStyle(this,'Regular')">Regular</div>
+            <div class="font-list-item" onclick="selectFontStyle(this,'Italic')">Italic</div>
+            <div class="font-list-item" onclick="selectFontStyle(this,'Bold')">Bold</div>
+            <div class="font-list-item" onclick="selectFontStyle(this,'Bold Italic')">Bold Italic</div>
+          </div>
+        </div>
+        <div class="font-col" style="flex:0.7">
+          <label>Size:</label>
+          <input class="font-input" type="text" id="fontSizeInput" value="12" style="width:60px">
+          <div class="font-list" id="fontSizeList">
+            <div class="font-list-item" onclick="selectFontSize(this,'8')">8</div>
+            <div class="font-list-item" onclick="selectFontSize(this,'9')">9</div>
+            <div class="font-list-item" onclick="selectFontSize(this,'10')">10</div>
+            <div class="font-list-item" onclick="selectFontSize(this,'11')">11</div>
+            <div class="font-list-item selected" onclick="selectFontSize(this,'12')">12</div>
+            <div class="font-list-item" onclick="selectFontSize(this,'14')">14</div>
+            <div class="font-list-item" onclick="selectFontSize(this,'16')">16</div>
+            <div class="font-list-item" onclick="selectFontSize(this,'18')">18</div>
+            <div class="font-list-item" onclick="selectFontSize(this,'20')">20</div>
+            <div class="font-list-item" onclick="selectFontSize(this,'24')">24</div>
+            <div class="font-list-item" onclick="selectFontSize(this,'28')">28</div>
+            <div class="font-list-item" onclick="selectFontSize(this,'36')">36</div>
+          </div>
+        </div>
+      </div>
+      <div class="font-preview" id="fontPreview">AaBbYyZz</div>
+    </div>
+    <div class="modal-footer">
+      <button class="win-btn default" onclick="applyFont()">OK</button>
+      <button class="win-btn" onclick="closeModal('fontModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- About Dialog -->
+<div class="modal-overlay" id="aboutModal">
+  <div class="modal" style="min-width:260px;max-width:280px">
+    <div class="modal-title">
+      <span class="modal-title-text">About Notepad</span>
+      <button class="title-btn close" onclick="closeModal('aboutModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="about-body">
+        <div class="about-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="2" width="20" height="28" fill="#fff" stroke="#000" stroke-width="1"/>
+            <rect x="4" y="2" width="20" height="4" fill="#000080"/>
+            <line x1="8" y1="10" x2="20" y2="10" stroke="#000" stroke-width="1"/>
+            <line x1="8" y1="13" x2="20" y2="13" stroke="#000" stroke-width="1"/>
+            <line x1="8" y1="16" x2="20" y2="16" stroke="#000" stroke-width="1"/>
+            <line x1="8" y1="19" x2="20" y2="19" stroke="#000" stroke-width="1"/>
+            <line x1="8" y1="22" x2="16" y2="22" stroke="#000" stroke-width="1"/>
+            <rect x="20" y="0" width="8" height="8" fill="#ffff80" stroke="#000" stroke-width="1"/>
+            <polygon points="20,0 28,0 28,8" fill="#c0c0c0" stroke="#000" stroke-width="0.5"/>
+            <line x1="20" y1="8" x2="28" y2="8" stroke="#000" stroke-width="1"/>
+            <line x1="20" y1="0" x2="20" y2="8" stroke="#000" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="about-text">
+          <p><strong>Notepad</strong></p>
+          <p>Version 5.1 (Classic)</p>
+          <p style="margin-top:6px">For Windows</p>
+          <p style="margin-top:8px; color:#444">© Microsoft Corporation</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="win-btn default" onclick="closeModal('aboutModal')">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Save Confirm Dialog -->
+<div class="modal-overlay" id="saveConfirmModal">
+  <div class="modal" style="min-width:280px">
+    <div class="modal-title">
+      <span class="modal-title-text">Notepad</span>
+      <button class="title-btn close" onclick="closeModal('saveConfirmModal'); pendingAction=null">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:24px;line-height:1">⚠</span>
+        <p id="saveConfirmText">Do you want to save changes to Untitled?</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="win-btn default" onclick="confirmSaveYes()">Save</button>
+      <button class="win-btn" onclick="confirmSaveNo()">Don't Save</button>
+      <button class="win-btn" onclick="closeModal('saveConfirmModal'); pendingAction=null">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Page Setup Dialog -->
+<div class="modal-overlay" id="pageSetupModal">
+  <div class="modal page-setup-modal" style="min-width:300px">
+    <div class="modal-title">
+      <span class="modal-title-text">Page Setup</span>
+      <button class="title-btn close" onclick="closeModal('pageSetupModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ps-group">
+        <div class="ps-group-title">Paper</div>
+        <div class="ps-row"><label>Size:</label><select id="psSize"><option>Letter</option><option>A4</option><option>Legal</option></select></div>
+        <div class="ps-row"><label>Source:</label><select id="psSource"><option>Automatically Select</option><option>Tray 1</option></select></div>
+      </div>
+      <div class="ps-group">
+        <div class="ps-group-title">Orientation</div>
+        <div class="ps-row"><label><input type="radio" name="orient" id="orientPortrait" checked> Portrait</label></div>
+        <div class="ps-row"><label><input type="radio" name="orient" id="orientLandscape"> Landscape</label></div>
+      </div>
+      <div class="ps-group">
+        <div class="ps-group-title">Margins (inches)</div>
+        <div class="ps-row"><label>Left:</label><input id="psLeft" type="text" value="1.0" style="width:60px"></div>
+        <div class="ps-row"><label>Right:</label><input id="psRight" type="text" value="1.0" style="width:60px"></div>
+        <div class="ps-row"><label>Top:</label><input id="psTop" type="text" value="1.0" style="width:60px"></div>
+        <div class="ps-row"><label>Bottom:</label><input id="psBottom" type="text" value="1.0" style="width:60px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="win-btn default" onclick="closeModal('pageSetupModal')">OK</button>
+      <button class="win-btn" onclick="closeModal('pageSetupModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main Window -->
+<div class="window" id="mainWindow">
+  <div class="title-bar" id="titleBar">
+    <div class="title-bar-left">
+      <div class="title-icon">
+        <svg viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="9" height="12" fill="#fff" stroke="#000" stroke-width="0.5"/>
+          <rect x="1" y="1" width="9" height="2.5" fill="#000080"/>
+          <rect x="9" y="0" width="4" height="4" fill="#ffff80" stroke="#000" stroke-width="0.5"/>
+          <polygon points="9,0 13,0 13,4" fill="#c0c0c0"/>
+          <line x1="3" y1="5.5" x2="9" y2="5.5" stroke="#666" stroke-width="0.7"/>
+          <line x1="3" y1="7" x2="9" y2="7" stroke="#666" stroke-width="0.7"/>
+          <line x1="3" y1="8.5" x2="9" y2="8.5" stroke="#666" stroke-width="0.7"/>
+          <line x1="3" y1="10" x2="7" y2="10" stroke="#666" stroke-width="0.7"/>
+        </svg>
+      </div>
+      <span class="title-text" id="titleText">Untitled - Notepad</span>
+    </div>
+    <div class="title-buttons">
+      <button class="title-btn" onclick="minimizeWindow()" title="Minimize">_</button>
+      <button class="title-btn" onclick="maximizeWindow()" id="maxBtn" title="Maximize">□</button>
+      <button class="title-btn close" onclick="closeWindow()" title="Close">✕</button>
+    </div>
+  </div>
+
+  <div class="menu-bar" id="menuBar">
+    <div class="menu-item" id="menuFile" onclick="toggleMenu('menuFile')">
+      <u>F</u>ile
+      <div class="dropdown">
+        <div class="dd-item" onclick="newFile()"><span>New</span><span class="dd-shortcut">Ctrl+N</span></div>
+        <div class="dd-item" onclick="newWindow()"><span>New Window</span><span class="dd-shortcut">Ctrl+Shift+N</span></div>
+        <div class="dd-item" onclick="openFile()"><span>Open...</span><span class="dd-shortcut">Ctrl+O</span></div>
+        <div class="dd-item" onclick="saveFile()"><span>Save</span><span class="dd-shortcut">Ctrl+S</span></div>
+        <div class="dd-item" onclick="saveAsFile()"><span>Save As...</span><span class="dd-shortcut">Ctrl+Shift+S</span></div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" onclick="showPageSetup()"><span>Page Setup...</span></div>
+        <div class="dd-item" onclick="printFile()"><span>Print...</span><span class="dd-shortcut">Ctrl+P</span></div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" onclick="closeWindow()"><span>Exit</span></div>
+      </div>
+    </div>
+
+    <div class="menu-item" id="menuEdit" onclick="toggleMenu('menuEdit')">
+      <u>E</u>dit
+      <div class="dropdown" style="min-width:200px">
+        <div class="dd-item" id="undoItem" onclick="doUndo()"><span>Undo</span><span class="dd-shortcut">Ctrl+Z</span></div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" id="cutItem" onclick="document.execCommand('cut')"><span>Cut</span><span class="dd-shortcut">Ctrl+X</span></div>
+        <div class="dd-item" id="copyItem" onclick="document.execCommand('copy')"><span>Copy</span><span class="dd-shortcut">Ctrl+C</span></div>
+        <div class="dd-item" id="pasteItem" onclick="doPaste()"><span>Paste</span><span class="dd-shortcut">Ctrl+V</span></div>
+        <div class="dd-item" onclick="document.execCommand('delete')"><span>Delete</span><span class="dd-shortcut">Del</span></div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" onclick="showFind()"><span>Find...</span><span class="dd-shortcut">Ctrl+F</span></div>
+        <div class="dd-item" onclick="doFindNext()"><span>Find Next</span><span class="dd-shortcut">F3</span></div>
+        <div class="dd-item" onclick="showReplace()"><span>Replace...</span><span class="dd-shortcut">Ctrl+H</span></div>
+        <div class="dd-item" onclick="showGoTo()"><span>Go To...</span><span class="dd-shortcut">Ctrl+G</span></div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" onclick="selectAll()"><span>Select All</span><span class="dd-shortcut">Ctrl+A</span></div>
+        <div class="dd-item" onclick="insertDateTime()"><span>Time/Date</span><span class="dd-shortcut">F5</span></div>
+      </div>
+    </div>
+
+    <div class="menu-item" id="menuFormat" onclick="toggleMenu('menuFormat')">
+      F<u>o</u>rmat
+      <div class="dropdown">
+        <div class="dd-item" id="wrapItem" onclick="toggleWordWrap()">
+          <span id="wrapCheck" class="dd-check">✓</span><span>Word Wrap</span>
+        </div>
+        <div class="dd-item" onclick="showFont()"><span>Font...</span></div>
+      </div>
+    </div>
+
+    <div class="menu-item" id="menuView" onclick="toggleMenu('menuView')">
+      <u>V</u>iew
+      <div class="dropdown">
+        <div class="dd-item" id="statusItem" onclick="toggleStatusBar()">
+          <span id="statusCheck" class="dd-check">✓</span><span>Status Bar</span>
+        </div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" onclick="zoomIn()"><span>Zoom In</span><span class="dd-shortcut">Ctrl++</span></div>
+        <div class="dd-item" onclick="zoomOut()"><span>Zoom Out</span><span class="dd-shortcut">Ctrl+-</span></div>
+        <div class="dd-item" onclick="zoomReset()"><span>Restore Default Zoom</span><span class="dd-shortcut">Ctrl+0</span></div>
+      </div>
+    </div>
+
+    <div class="menu-item" id="menuHelp" onclick="toggleMenu('menuHelp')">
+      <u>H</u>elp
+      <div class="dropdown">
+        <div class="dd-item" onclick="showAbout()"><span>About Notepad</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="editor-wrap">
+    <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+  </div>
+
+  <div class="status-bar" id="statusBar">
+    <div class="status-panel ln" id="statusLn">Ln 1, Col 1</div>
+    <div class="status-panel" id="statusSel">100%</div>
+    <div class="status-panel fill"></div>
+    <div class="status-panel" id="statusEnc">UTF-8</div>
+    <div class="status-panel" id="statusEol">Windows (CRLF)</div>
+  </div>
+</div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="fileInput" accept="*/*" style="display:none">
+<input type="file" id="saveAnchor" style="display:none">
+
+<script>
+  // ── State ──
+  let fileName = 'Untitled';
+  let saved = true;
+  let wordWrap = true;
+  let statusVisible = true;
+  let zoomLevel = 100;
+  let pendingAction = null;
+  let lastSearch = '';
+  let lastSearchIdx = -1;
+  let editorFont = { family: 'Courier New', style: 'Regular', size: 12 };
+  let undoStack = [];
+  let isDragging = false;
+  let dragOffX = 0, dragOffY = 0;
+
+  const editor = document.getElementById('editor');
+  const titleText = document.getElementById('titleText');
+  const statusBar = document.getElementById('statusBar');
+  const statusLn = document.getElementById('statusLn');
+  const statusSel = document.getElementById('statusSel');
+  const wrapCheck = document.getElementById('wrapCheck');
+
+  // ── Title update ──
+  function updateTitle() {
+    const dirty = saved ? '' : '* ';
+    titleText.textContent = dirty + fileName + ' - Notepad';
+  }
+
+  // ── Dirty tracking ──
+  editor.addEventListener('input', () => {
+    if (saved) { saved = false; updateTitle(); }
+    updateStatus();
+  });
+
+  editor.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const s = editor.selectionStart, end = editor.selectionEnd;
+      const v = editor.value;
+      editor.value = v.substring(0,s) + '\t' + v.substring(end);
+      editor.selectionStart = editor.selectionEnd = s+1;
+      saved = false; updateTitle(); updateStatus();
+    }
+  });
+
+  editor.addEventListener('click', updateStatus);
+  editor.addEventListener('keyup', updateStatus);
+  editor.addEventListener('select', updateStatus);
+
+  // ── Status bar ──
+  function updateStatus() {
+    const v = editor.value;
+    const pos = editor.selectionStart;
+    const lines = v.substring(0, pos).split('\n');
+    const ln = lines.length;
+    const col = lines[lines.length-1].length + 1;
+    statusLn.textContent = `Ln ${ln}, Col ${col}`;
+    statusSel.textContent = zoomLevel + '%';
+  }
+
+  // ── Menu logic ──
+  function toggleMenu(id) {
+    const item = document.getElementById(id);
+    const wasActive = item.classList.contains('active');
+    closeAllMenus();
+    if (!wasActive) item.classList.add('active');
+  }
+
+  function closeAllMenus() {
+    document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.menu-item')) closeAllMenus();
+    if (!e.target.closest('.ctx-menu')) closeCtxMenu();
+  });
+
+  // ── File operations ──
+  function newFile() {
+    closeAllMenus();
+    if (!saved) {
+      pendingAction = 'new';
+      document.getElementById('saveConfirmText').textContent = `Do you want to save changes to ${fileName}?`;
+      showModal('saveConfirmModal');
+    } else {
+      doNew();
+    }
+  }
+
+  function doNew() {
+    editor.value = '';
+    fileName = 'Untitled';
+    saved = true;
+    updateTitle();
+    updateStatus();
+    editor.focus();
+  }
+
+  function newWindow() {
+    closeAllMenus();
+    window.open(location.href, '_blank');
+  }
+
+  function openFile() {
+    closeAllMenus();
+    if (!saved) {
+      pendingAction = 'open';
+      document.getElementById('saveConfirmText').textContent = `Do you want to save changes to ${fileName}?`;
+      showModal('saveConfirmModal');
+    } else {
+      triggerOpen();
+    }
+  }
+
+  function triggerOpen() {
+    document.getElementById('fileInput').value = '';
+    document.getElementById('fileInput').click();
+  }
+
+  document.getElementById('fileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      editor.value = ev.target.result;
+      fileName = file.name;
+      saved = true;
+      updateTitle();
+      updateStatus();
+      editor.focus();
+    };
+    reader.readAsText(file);
+  });
+
+  function saveFile() {
+    closeAllMenus();
+    doSave();
+  }
+
+  function doSave() {
+    const content = editor.value;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName.endsWith('.txt') ? fileName : fileName + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    saved = true;
+    updateTitle();
+  }
+
+  function saveAsFile() {
+    closeAllMenus();
+    const name = prompt('Save As:', fileName);
+    if (name !== null) {
+      fileName = name || 'Untitled';
+      doSave();
+    }
+  }
+
+  function printFile() {
+    closeAllMenus();
+    window.print();
+  }
+
+  // ── Save confirm ──
+  function confirmSaveYes() {
+    closeModal('saveConfirmModal');
+    doSave();
+    if (pendingAction === 'new') doNew();
+    else if (pendingAction === 'open') triggerOpen();
+    pendingAction = null;
+  }
+
+  function confirmSaveNo() {
+    closeModal('saveConfirmModal');
+    if (pendingAction === 'new') doNew();
+    else if (pendingAction === 'open') { saved = true; triggerOpen(); }
+    pendingAction = null;
+  }
+
+  // ── Edit operations ──
+  function doUndo() {
+    closeAllMenus();
+    document.execCommand('undo');
+    updateStatus();
+  }
+
+  function doPaste() {
+    closeAllMenus();
+    navigator.clipboard.readText().then(t => {
+      const s = editor.selectionStart, e2 = editor.selectionEnd;
+      const v = editor.value;
+      editor.value = v.substring(0,s) + t + v.substring(e2);
+      editor.selectionStart = editor.selectionEnd = s + t.length;
+      saved = false; updateTitle(); updateStatus();
+    }).catch(() => {
+      document.execCommand('paste');
+    });
+  }
+
+  function selectAll() {
+    closeAllMenus();
+    editor.select();
+  }
+
+  function insertDateTime() {
+    closeAllMenus();
+    const now = new Date();
+    const str = now.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'}) +
+      ' ' + now.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
+    const s = editor.selectionStart;
+    const v = editor.value;
+    editor.value = v.substring(0,s) + str + v.substring(editor.selectionEnd);
+    editor.selectionStart = editor.selectionEnd = s + str.length;
+    saved = false; updateTitle(); updateStatus(); editor.focus();
+  }
+
+  // ── Find ──
+  function showFind() {
+    closeAllMenus();
+    showModal('findModal');
+    document.getElementById('findInput').focus();
+  }
+
+  function doFind() {
+    const query = document.getElementById('findInput').value;
+    const matchCase = document.getElementById('findCase').checked;
+    const wrap = document.getElementById('findWrap').checked;
+    if (!query) return;
+    lastSearch = query;
+    const text = editor.value;
+    const start = editor.selectionEnd;
+    let idx = matchCase ? text.indexOf(query, start) : text.toLowerCase().indexOf(query.toLowerCase(), start);
+    if (idx === -1 && wrap) {
+      idx = matchCase ? text.indexOf(query) : text.toLowerCase().indexOf(query.toLowerCase());
+    }
+    if (idx !== -1) {
+      editor.focus();
+      editor.setSelectionRange(idx, idx + query.length);
+      lastSearchIdx = idx;
+    } else {
+      alert(`Cannot find "${query}"`);
+    }
+  }
+
+  function doFindNext() {
+    if (!lastSearch) { showFind(); return; }
+    const text = editor.value;
+    const start = editor.selectionEnd;
+    let idx = text.toLowerCase().indexOf(lastSearch.toLowerCase(), start);
+    if (idx === -1) idx = text.toLowerCase().indexOf(lastSearch.toLowerCase());
+    if (idx !== -1) {
+      editor.focus();
+      editor.setSelectionRange(idx, idx + lastSearch.length);
+    }
+  }
+
+  // ── Replace ──
+  function showReplace() {
+    closeAllMenus();
+    showModal('replaceModal');
+    document.getElementById('replaceFind').focus();
+  }
+
+  function doReplace(all) {
+    const find = document.getElementById('replaceFind').value;
+    const rep = document.getElementById('replaceWith').value;
+    const matchCase = document.getElementById('replaceCase').checked;
+    if (!find) return;
+    if (all) {
+      if (matchCase) {
+        editor.value = editor.value.split(find).join(rep);
+      } else {
+        const re = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+        editor.value = editor.value.replace(re, rep);
+      }
+      saved = false; updateTitle(); updateStatus(); editor.focus();
+    } else {
+      const text = editor.value;
+      const start = editor.selectionStart;
+      const idx = matchCase ? text.indexOf(find, start) : text.toLowerCase().indexOf(find.toLowerCase(), start);
+      if (idx !== -1) {
+        editor.value = text.substring(0,idx) + rep + text.substring(idx + find.length);
+        editor.setSelectionRange(idx, idx + rep.length);
+        saved = false; updateTitle(); updateStatus(); editor.focus();
+      }
+    }
+  }
+
+  // ── Go To ──
+  function showGoTo() {
+    closeAllMenus();
+    if (wordWrap) { alert('Go To Line is unavailable while word wrap is on.'); return; }
+    showModal('gotoModal');
+    document.getElementById('gotoLine').focus();
+  }
+
+  function doGoTo() {
+    const line = parseInt(document.getElementById('gotoLine').value);
+    if (isNaN(line)) return;
+    const lines = editor.value.split('\n');
+    let pos = 0;
+    for (let i = 0; i < Math.min(line-1, lines.length-1); i++) {
+      pos += lines[i].length + 1;
+    }
+    editor.focus();
+    editor.setSelectionRange(pos, pos);
+    closeModal('gotoModal');
+    updateStatus();
+  }
+
+  // ── Word Wrap ──
+  function toggleWordWrap() {
+    closeAllMenus();
+    wordWrap = !wordWrap;
+    wrapCheck.style.visibility = wordWrap ? 'visible' : 'hidden';
+    editor.classList.toggle('no-wrap', !wordWrap);
+    editor.style.whiteSpace = wordWrap ? 'pre-wrap' : 'pre';
+    editor.focus();
+  }
+
+  // ── Status Bar toggle ──
+  function toggleStatusBar() {
+    closeAllMenus();
+    statusVisible = !statusVisible;
+    statusBar.style.display = statusVisible ? 'flex' : 'none';
+    document.getElementById('statusCheck').style.visibility = statusVisible ? 'visible' : 'hidden';
+  }
+
+  // ── Zoom ──
+  function zoomIn() {
+    closeAllMenus();
+    zoomLevel = Math.min(zoomLevel + 10, 500);
+    applyZoom();
+  }
+  function zoomOut() {
+    closeAllMenus();
+    zoomLevel = Math.max(zoomLevel - 10, 10);
+    applyZoom();
+  }
+  function zoomReset() {
+    closeAllMenus();
+    zoomLevel = 100;
+    applyZoom();
+  }
+  function applyZoom() {
+    editor.style.fontSize = (editorFont.size * zoomLevel / 100) + 'px';
+    updateStatus();
+  }
+
+  // ── Font ──
+  const fontFamilies = [
+    'Courier New','Consolas','Lucida Console','Cascadia Mono','Arial',
+    'Times New Roman','Segoe UI','Tahoma','Verdana','Georgia',
+    'Comic Sans MS','Impact','Trebuchet MS','Palatino Linotype'
+  ];
+
+  function populateFontList() {
+    const list = document.getElementById('fontFamilyList');
+    list.innerHTML = '';
+    fontFamilies.forEach(f => {
+      const div = document.createElement('div');
+      div.className = 'font-list-item' + (f === editorFont.family ? ' selected' : '');
+      div.textContent = f;
+      div.onclick = () => {
+        document.querySelectorAll('#fontFamilyList .font-list-item').forEach(x => x.classList.remove('selected'));
+        div.classList.add('selected');
+        document.getElementById('fontFamilyInput').value = f;
+        updateFontPreview();
+      };
+      list.appendChild(div);
+    });
+  }
+
+  function selectFontStyle(el, style) {
+    document.querySelectorAll('#fontStyleList .font-list-item').forEach(x => x.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('fontStyleInput').value = style;
+    updateFontPreview();
+  }
+
+  function selectFontSize(el, size) {
+    document.querySelectorAll('#fontSizeList .font-list-item').forEach(x => x.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('fontSizeInput').value = size;
+    updateFontPreview();
+  }
+
+  function updateFontPreview() {
+    const fam = document.getElementById('fontFamilyInput').value;
+    const sty = document.getElementById('fontStyleInput').value;
+    const sz = document.getElementById('fontSizeInput').value;
+    const preview = document.getElementById('fontPreview');
+    preview.style.fontFamily = fam;
+    preview.style.fontSize = sz + 'px';
+    preview.style.fontStyle = sty.includes('Italic') ? 'italic' : 'normal';
+    preview.style.fontWeight = sty.includes('Bold') ? 'bold' : 'normal';
+  }
+
+  function showFont() {
+    closeAllMenus();
+    populateFontList();
+    document.getElementById('fontFamilyInput').value = editorFont.family;
+    document.getElementById('fontStyleInput').value = editorFont.style;
+    document.getElementById('fontSizeInput').value = editorFont.size;
+    updateFontPreview();
+    showModal('fontModal');
+  }
+
+  function applyFont() {
+    editorFont.family = document.getElementById('fontFamilyInput').value;
+    editorFont.style = document.getElementById('fontStyleInput').value;
+    editorFont.size = parseInt(document.getElementById('fontSizeInput').value) || 12;
+    editor.style.fontFamily = editorFont.family;
+    editor.style.fontStyle = editorFont.style.includes('Italic') ? 'italic' : 'normal';
+    editor.style.fontWeight = editorFont.style.includes('Bold') ? 'bold' : 'normal';
+    editor.style.fontSize = (editorFont.size * zoomLevel / 100) + 'px';
+    closeModal('fontModal');
+    editor.focus();
+  }
+
+  // ── Page Setup ──
+  function showPageSetup() {
+    closeAllMenus();
+    showModal('pageSetupModal');
+  }
+
+  // ── About ──
+  function showAbout() {
+    closeAllMenus();
+    showModal('aboutModal');
+  }
+
+  // ── Window controls ──
+  function minimizeWindow() {
+    document.getElementById('mainWindow').style.display = 'none';
+    setTimeout(() => document.getElementById('mainWindow').style.display = 'flex', 2000);
+  }
+
+  let maximized = false;
+  let origStyle = {};
+  function maximizeWindow() {
+    const w = document.getElementById('mainWindow');
+    if (!maximized) {
+      origStyle = { width: w.style.width, height: w.style.height, position: w.style.position,
+        top: w.style.top, left: w.style.left, transform: w.style.transform };
+      w.style.position = 'fixed';
+      w.style.top = '0'; w.style.left = '0';
+      w.style.width = '100vw'; w.style.height = '100vh';
+      w.style.transform = 'none';
+      document.getElementById('maxBtn').textContent = '❐';
+      maximized = true;
+    } else {
+      Object.assign(w.style, origStyle);
+      document.getElementById('maxBtn').textContent = '□';
+      maximized = false;
+    }
+  }
+
+  function closeWindow() {
+    if (!saved) {
+      pendingAction = 'close';
+      document.getElementById('saveConfirmText').textContent = `Do you want to save changes to ${fileName}?`;
+      showModal('saveConfirmModal');
+    } else {
+      alert('Goodbye!');
+    }
+  }
+
+  // ── Modal helpers ──
+  function showModal(id) {
+    document.getElementById(id).classList.add('show');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+  }
+
+  // ── Context menu ──
+  const ctxMenu = document.getElementById('ctxMenu');
+
+  editor.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    ctxMenu.style.left = e.clientX + 'px';
+    ctxMenu.style.top = e.clientY + 'px';
+    ctxMenu.classList.add('show');
+  });
+
+  function closeCtxMenu() { ctxMenu.classList.remove('show'); }
+
+  document.getElementById('ctxUndo').onclick = () => { document.execCommand('undo'); closeCtxMenu(); updateStatus(); };
+  document.getElementById('ctxCut').onclick = () => { document.execCommand('cut'); closeCtxMenu(); saved=false; updateTitle(); updateStatus(); };
+  document.getElementById('ctxCopy').onclick = () => { document.execCommand('copy'); closeCtxMenu(); };
+  document.getElementById('ctxPaste').onclick = () => { doPaste(); closeCtxMenu(); };
+  document.getElementById('ctxDelete').onclick = () => { document.execCommand('delete'); closeCtxMenu(); saved=false; updateTitle(); updateStatus(); };
+  document.getElementById('ctxSelectAll').onclick = () => { editor.select(); closeCtxMenu(); };
+
+  // ── Keyboard shortcuts ──
+  document.addEventListener('keydown', (e) => {
+    const ctrl = e.ctrlKey || e.metaKey;
+    if (ctrl && e.key === 'n') { e.preventDefault(); newFile(); }
+    if (ctrl && e.shiftKey && e.key === 'N') { e.preventDefault(); newWindow(); }
+    if (ctrl && e.key === 'o') { e.preventDefault(); openFile(); }
+    if (ctrl && e.key === 's' && !e.shiftKey) { e.preventDefault(); saveFile(); }
+    if (ctrl && e.shiftKey && e.key === 'S') { e.preventDefault(); saveAsFile(); }
+    if (ctrl && e.key === 'p') { e.preventDefault(); printFile(); }
+    if (ctrl && e.key === 'f') { e.preventDefault(); showFind(); }
+    if (ctrl && e.key === 'h') { e.preventDefault(); showReplace(); }
+    if (ctrl && e.key === 'g') { e.preventDefault(); showGoTo(); }
+    if (ctrl && e.key === 'a') { e.preventDefault(); editor.select(); }
+    if (ctrl && e.key === '+') { e.preventDefault(); zoomIn(); }
+    if (ctrl && e.key === '-') { e.preventDefault(); zoomOut(); }
+    if (ctrl && e.key === '0') { e.preventDefault(); zoomReset(); }
+    if (e.key === 'F3') { e.preventDefault(); doFindNext(); }
+    if (e.key === 'F5') { e.preventDefault(); insertDateTime(); }
+    if (e.key === 'Escape') {
+      closeAllMenus();
+      document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+      closeCtxMenu();
+    }
+  });
+
+  // ── Window dragging ──
+  const titleBar = document.getElementById('titleBar');
+  const mainWin = document.getElementById('mainWindow');
+
+  titleBar.addEventListener('mousedown', (e) => {
+    if (maximized) return;
+    if (e.target.closest('.title-btn')) return;
+    isDragging = true;
+    const rect = mainWin.getBoundingClientRect();
+    dragOffX = e.clientX - rect.left;
+    dragOffY = e.clientY - rect.top;
+    mainWin.style.position = 'fixed';
+    mainWin.style.margin = '0';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    mainWin.style.left = (e.clientX - dragOffX) + 'px';
+    mainWin.style.top = (e.clientY - dragOffY) + 'px';
+  });
+
+  document.addEventListener('mouseup', () => { isDragging = false; });
+
+  titleBar.addEventListener('dblclick', (e) => {
+    if (e.target.closest('.title-btn')) return;
+    maximizeWindow();
+  });
+
+  // ── Init ──
+  updateTitle();
+  updateStatus();
+  editor.focus();
+</script>
+</body>
+</html>

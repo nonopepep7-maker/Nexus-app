@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Procrastination Simulator™</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d1a;
+    --surface: #16162a;
+    --card: #1e1e38;
+    --accent1: #ff6b35;
+    --accent2: #ffd700;
+    --accent3: #00e5ff;
+    --accent4: #ff4fa3;
+    --accent5: #7fff5f;
+    --text: #f0f0ff;
+    --muted: #8888aa;
+    --radius: 18px;
+    --glow1: 0 0 30px #ff6b3555;
+    --glow2: 0 0 30px #ffd70055;
+    --glow3: 0 0 30px #00e5ff55;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E😴%3C/text%3E%3C/svg%3E") 16 16, auto;
+  }
+
+  /* ── STARS BG ── */
+  #stars-canvas {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::after {
+    content: '';
+    position: fixed; inset: 0; z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none;
+    opacity: .5;
+  }
+
+  /* ── LAYOUT ── */
+  .wrapper {
+    position: relative; z-index: 2;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 30px 20px 80px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    text-align: center;
+    padding: 50px 0 30px;
+    animation: fadeDown .8s cubic-bezier(.22,1,.36,1) both;
+  }
+  header .pre-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: .85rem;
+    letter-spacing: .25em;
+    text-transform: uppercase;
+    color: var(--accent3);
+    opacity: .85;
+    margin-bottom: 10px;
+  }
+  header h1 {
+    font-family: 'Bangers', cursive;
+    font-size: clamp(3.2rem, 10vw, 6.5rem);
+    line-height: .95;
+    letter-spacing: .03em;
+    background: linear-gradient(135deg, var(--accent1) 0%, var(--accent2) 50%, var(--accent4) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 40px #ff6b3588);
+    animation: pulseTitle 4s ease-in-out infinite;
+  }
+  header .subtitle {
+    margin-top: 14px;
+    font-size: 1.05rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  header .subtitle span { color: var(--accent2); }
+
+  @keyframes pulseTitle {
+    0%,100% { filter: drop-shadow(0 0 30px #ff6b3566); }
+    50%      { filter: drop-shadow(0 0 60px #ff6b35aa); }
+  }
+
+  /* ── STATS BAR ── */
+  .stats-bar {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+    animation: fadeUp .8s .2s cubic-bezier(.22,1,.36,1) both;
+  }
+  .stat-pill {
+    background: var(--card);
+    border: 1.5px solid #ffffff14;
+    border-radius: 50px;
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .88rem;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: transform .2s, border-color .2s;
+  }
+  .stat-pill:hover { transform: translateY(-2px); border-color: #ffffff33; }
+  .stat-pill .label { color: var(--muted); font-weight: 600; }
+  .stat-pill .value { color: var(--accent2); font-size: 1rem; }
+  .stat-pill .icon { font-size: 1.1rem; }
+
+  /* ── DEADLINE PANEL ── */
+  .deadline-panel {
+    background: linear-gradient(135deg, #1a0a2e, #2a0a1e);
+    border: 2px solid var(--accent4);
+    border-radius: var(--radius);
+    padding: 22px 28px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    box-shadow: 0 0 40px #ff4fa322;
+    animation: fadeUp .8s .3s cubic-bezier(.22,1,.36,1) both;
+  }
+  .deadline-left { display: flex; align-items: center; gap: 14px; }
+  .deadline-icon { font-size: 2.4rem; animation: shake 1s .5s ease-in-out infinite; }
+  @keyframes shake {
+    0%,100% { transform: rotate(0); }
+    20%      { transform: rotate(-8deg); }
+    40%      { transform: rotate(8deg); }
+    60%      { transform: rotate(-4deg); }
+    80%      { transform: rotate(4deg); }
+  }
+  .deadline-text h3 { font-family: 'Fredoka One', cursive; font-size: 1.1rem; color: var(--accent4); }
+  .deadline-text p  { font-size: .85rem; color: var(--muted); margin-top: 2px; }
+  #deadline-timer {
+    font-family: 'Bangers', cursive;
+    font-size: 2.4rem;
+    letter-spacing: .08em;
+    color: var(--accent4);
+    text-shadow: var(--glow1);
+    min-width: 120px;
+    text-align: right;
+  }
+  #deadline-timer.urgent { color: var(--accent1); animation: urgentPulse .4s ease-in-out infinite; }
+  @keyframes urgentPulse {
+    0%,100% { opacity: 1; } 50% { opacity: .4; }
+  }
+
+  /* ── PRODUCTIVITY METER ── */
+  .productivity-section {
+    margin-bottom: 28px;
+    animation: fadeUp .8s .35s cubic-bezier(.22,1,.36,1) both;
+  }
+  .prod-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+  }
+  .prod-header span { font-size: .85rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+  .prod-header .prod-val { color: var(--accent5); font-family: 'Bangers', cursive; font-size: 1.2rem; }
+  .prod-track {
+    background: #ffffff0d;
+    border-radius: 50px;
+    height: 14px;
+    overflow: hidden;
+    border: 1px solid #ffffff11;
+  }
+  .prod-fill {
+    height: 100%;
+    border-radius: 50px;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
+    transition: width 1.2s cubic-bezier(.22,1,.36,1);
+    box-shadow: 0 0 12px var(--accent2);
+    position: relative;
+  }
+  .prod-fill::after {
+    content: '';
+    position: absolute; right: 0; top: 0; bottom: 0; width: 20px;
+    background: linear-gradient(90deg, transparent, #ffffff55);
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+  @keyframes shimmer { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
+
+  /* ── ACTIVITY GRID ── */
+  .section-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.3rem;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--accent3);
+  }
+  .section-title::after {
+    content: '';
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, var(--accent3)44, transparent);
+  }
+
+  .activities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+    animation: fadeUp .8s .45s cubic-bezier(.22,1,.36,1) both;
+  }
+  .activity-card {
+    background: var(--card);
+    border: 1.5px solid #ffffff0e;
+    border-radius: var(--radius);
+    padding: 18px 16px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform .25s cubic-bezier(.22,1,.36,1), border-color .25s, box-shadow .25s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .activity-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 0%, var(--card-glow, #ffffff09), transparent 70%);
+    transition: opacity .3s;
+    opacity: 0;
+  }
+  .activity-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    border-color: var(--card-accent, #ffffff33);
+    box-shadow: 0 12px 40px #00000088, 0 0 0 1px var(--card-accent, #ffffff22);
+  }
+  .activity-card:hover::before { opacity: 1; }
+  .activity-card:active { transform: scale(.97); }
+
+  .activity-card.doing { animation: cardDoing .3s cubic-bezier(.22,1,.36,1); }
+  @keyframes cardDoing {
+    0%  { transform: scale(1.08); }
+    60% { transform: scale(.96); }
+    100%{ transform: scale(1); }
+  }
+
+  .card-emoji  { font-size: 2.4rem; margin-bottom: 10px; display: block; transition: transform .3s; }
+  .activity-card:hover .card-emoji { transform: scale(1.2) rotate(-5deg); }
+  .card-title  { font-family: 'Fredoka One', cursive; font-size: 1.05rem; margin-bottom: 4px; }
+  .card-desc   { font-size: .78rem; color: var(--muted); line-height: 1.4; }
+  .card-xp     {
+    position: absolute; top: 12px; right: 12px;
+    background: var(--card-accent, #ffffff22);
+    border-radius: 30px;
+    padding: 3px 9px;
+    font-size: .72rem;
+    font-weight: 800;
+    color: var(--accent2);
+    font-family: 'Fredoka One', cursive;
+  }
+  .card-count {
+    position: absolute; bottom: 12px; right: 12px;
+    font-size: .72rem;
+    color: var(--muted);
+    font-weight: 700;
+  }
+
+  /* Card accents */
+  .ac-orange { --card-accent: #ff6b3555; --card-glow: #ff6b3511; }
+  .ac-yellow { --card-accent: #ffd70055; --card-glow: #ffd70011; }
+  .ac-cyan   { --card-accent: #00e5ff55; --card-glow: #00e5ff11; }
+  .ac-pink   { --card-accent: #ff4fa355; --card-glow: #ff4fa311; }
+  .ac-green  { --card-accent: #7fff5f55; --card-glow: #7fff5f11; }
+  .ac-purple { --card-accent: #bf7fff55; --card-glow: #bf7fff11; }
+
+  /* ── FEED ── */
+  .feed-section { animation: fadeUp .8s .55s cubic-bezier(.22,1,.36,1) both; }
+  .feed {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .feed::-webkit-scrollbar { width: 4px; }
+  .feed::-webkit-scrollbar-track { background: transparent; }
+  .feed::-webkit-scrollbar-thumb { background: #ffffff22; border-radius: 4px; }
+
+  .feed-item {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    border-left: 3px solid var(--feed-color, var(--accent3));
+    animation: feedSlide .4s cubic-bezier(.22,1,.36,1) both;
+    transition: opacity .3s;
+  }
+  @keyframes feedSlide {
+    from { opacity: 0; transform: translateX(-18px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .feed-emoji { font-size: 1.5rem; flex-shrink: 0; margin-top: 1px; }
+  .feed-content { flex: 1; min-width: 0; }
+  .feed-msg  { font-size: .9rem; font-weight: 700; color: var(--text); line-height: 1.35; }
+  .feed-time { font-size: .75rem; color: var(--muted); margin-top: 3px; }
+  .feed-xp   { font-family: 'Fredoka One', cursive; color: var(--accent2); font-size: .85rem; white-space: nowrap; align-self: center; }
+  .feed-empty {
+    text-align: center; padding: 40px 20px;
+    color: var(--muted); font-size: .95rem; font-weight: 600;
+  }
+  .feed-empty .big { font-size: 3rem; margin-bottom: 10px; display: block; animation: float 3s ease-in-out infinite; }
+  @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+  /* ── TOAST ── */
+  #toast-container {
+    position: fixed; bottom: 30px; right: 24px;
+    z-index: 999;
+    display: flex; flex-direction: column-reverse; gap: 10px;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--card);
+    border: 1.5px solid var(--toast-color, #ffffff22);
+    border-radius: 14px;
+    padding: 13px 18px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: .88rem; font-weight: 700;
+    box-shadow: 0 8px 32px #00000088, 0 0 20px var(--toast-glow, transparent);
+    animation: toastIn .4s cubic-bezier(.22,1,.36,1) both;
+    min-width: 220px; max-width: 320px;
+    pointer-events: none;
+  }
+  .toast.out { animation: toastOut .35s ease-in both; }
+  @keyframes toastIn  { from { opacity: 0; transform: translateX(40px) scale(.9); } }
+  @keyframes toastOut { to   { opacity: 0; transform: translateX(40px) scale(.9); } }
+
+  /* ── LEVEL UP OVERLAY ── */
+  #levelup-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    background: #00000099;
+    backdrop-filter: blur(6px);
+    opacity: 0; pointer-events: none;
+    transition: opacity .3s;
+  }
+  #levelup-overlay.show { opacity: 1; pointer-events: auto; }
+  .levelup-card {
+    background: linear-gradient(135deg, #1a1a38, #2a1a48);
+    border: 2px solid var(--accent2);
+    border-radius: 24px;
+    padding: 50px 60px;
+    text-align: center;
+    box-shadow: 0 0 80px #ffd70044, 0 30px 80px #00000099;
+    transform: scale(.7); transition: transform .5s cubic-bezier(.22,1,.36,1);
+  }
+  #levelup-overlay.show .levelup-card { transform: scale(1); }
+  .levelup-emoji { font-size: 5rem; display: block; animation: spin 1s ease-out; }
+  @keyframes spin { from { transform: rotate(-180deg) scale(0); } to { transform: rotate(0) scale(1); } }
+  .levelup-title {
+    font-family: 'Bangers', cursive;
+    font-size: 3.5rem;
+    letter-spacing: .06em;
+    background: linear-gradient(135deg, var(--accent2), var(--accent1));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin: 12px 0 6px;
+  }
+  .levelup-sub { color: var(--muted); font-size: 1rem; font-weight: 600; }
+  .levelup-btn {
+    margin-top: 28px;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    border: none; border-radius: 50px;
+    padding: 12px 36px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.1rem;
+    color: #1a1a1a;
+    cursor: pointer;
+    transition: transform .2s, box-shadow .2s;
+    box-shadow: 0 6px 24px #ff6b3555;
+  }
+  .levelup-btn:hover { transform: scale(1.05); box-shadow: 0 10px 36px #ff6b3577; }
+
+  /* ── CONFETTI ── */
+  .confetti-piece {
+    position: fixed;
+    top: -10px;
+    width: 10px; height: 12px;
+    border-radius: 3px;
+    z-index: 9998;
+    pointer-events: none;
+    animation: confettiFall var(--dur, 2.5s) ease-in var(--delay, 0s) both;
+  }
+  @keyframes confettiFall {
+    0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg) scale(.5); opacity: 0; }
+  }
+
+  /* ── ACHIEVEMENTS ── */
+  .achievements-section {
+    margin-top: 32px;
+    animation: fadeUp .8s .65s cubic-bezier(.22,1,.36,1) both;
+  }
+  .achievements-grid {
+    display: flex; flex-wrap: wrap; gap: 10px;
+  }
+  .badge {
+    background: var(--card);
+    border: 1.5px solid #ffffff11;
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: .82rem; font-weight: 700;
+    opacity: .35;
+    transition: opacity .4s, border-color .4s, box-shadow .4s, transform .3s;
+    cursor: default;
+  }
+  .badge.unlocked {
+    opacity: 1;
+    border-color: var(--badge-color, #ffffff33);
+    box-shadow: 0 0 16px var(--badge-glow, transparent);
+    animation: badgePop .4s cubic-bezier(.22,1,.36,1);
+  }
+  .badge:hover.unlocked { transform: scale(1.05); }
+  @keyframes badgePop {
+    0%  { transform: scale(0); opacity: 0; }
+    70% { transform: scale(1.12); }
+    100%{ transform: scale(1); opacity: 1; }
+  }
+  .badge-icon { font-size: 1.4rem; }
+  .badge-info { }
+  .badge-name { color: var(--text); line-height: 1.2; }
+  .badge-desc { color: var(--muted); font-size: .72rem; font-weight: 600; }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    margin-top: 50px;
+    color: var(--muted);
+    font-size: .8rem;
+    opacity: .6;
+  }
+
+  /* ── UTILS ── */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-30px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 540px) {
+    .activities-grid { grid-template-columns: repeat(2, 1fr); }
+    #deadline-timer { font-size: 1.8rem; }
+    .levelup-card { padding: 36px 28px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars-canvas"></canvas>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="pre-title">🎓 Official Academic Software v69.420</div>
+    <h1>Procrastination<br>Simulator™</h1>
+    <p class="subtitle">You have <span id="assignment-name">a 3,000-word essay</span> due in <span id="due-display">8 hours</span>. Choose wisely.</p>
+  </header>
+
+  <!-- STATS -->
+  <div class="stats-bar">
+    <div class="stat-pill">
+      <span class="icon">⚡</span>
+      <span class="label">Level</span>
+      <span class="value" id="stat-level">1</span>
+    </div>
+    <div class="stat-pill">
+      <span class="icon">🪙</span>
+      <span class="label">Procrastipoints</span>
+      <span class="value" id="stat-xp">0</span>
+    </div>
+    <div class="stat-pill">
+      <span class="icon">🔥</span>
+      <span class="label">Streak</span>
+      <span class="value" id="stat-streak">0</span>
+    </div>
+    <div class="stat-pill">
+      <span class="icon">🎯</span>
+      <span class="label">Actions</span>
+      <span class="value" id="stat-actions">0</span>
+    </div>
+  </div>
+
+  <!-- DEADLINE PANIC -->
+  <div class="deadline-panel">
+    <div class="deadline-left">
+      <div class="deadline-icon">⏰</div>
+      <div class="deadline-text">
+        <h3>DEADLINE APPROACHING</h3>
+        <p>Your professor will not accept excuses</p>
+      </div>
+    </div>
+    <div id="deadline-timer">08:00:00</div>
+  </div>
+
+  <!-- PRODUCTIVITY -->
+  <div class="productivity-section">
+    <div class="prod-header">
+      <span>📊 Productivity Level</span>
+      <span class="prod-val" id="prod-text">Absolutely zero</span>
+    </div>
+    <div class="prod-track">
+      <div class="prod-fill" id="prod-fill" style="width: 100%"></div>
+    </div>
+  </div>
+
+  <!-- ACTIVITIES -->
+  <div class="section-title">🕹️ What are you doing instead?</div>
+  <div class="activities-grid" id="activities-grid">
+    <!-- injected by JS -->
+  </div>
+
+  <!-- FEED -->
+  <div class="feed-section">
+    <div class="section-title">📜 Activity Log</div>
+    <div class="feed" id="feed">
+      <div class="feed-empty" id="feed-empty">
+        <span class="big">😴</span>
+        Nothing yet… just staring at a blank document counts as studying, right?
+      </div>
+    </div>
+  </div>
+
+  <!-- ACHIEVEMENTS -->
+  <div class="achievements-section">
+    <div class="section-title">🏆 Achievements</div>
+    <div class="achievements-grid" id="achievements-grid">
+      <!-- injected by JS -->
+    </div>
+  </div>
+
+  <footer>
+    <p>No essays were harmed in the making of this simulator. (Yours, however…)</p>
+  </footer>
+
+</div>
+
+<!-- LEVEL UP OVERLAY -->
+<div id="levelup-overlay">
+  <div class="levelup-card">
+    <span class="levelup-emoji" id="levelup-emoji">🎉</span>
+    <div class="levelup-title" id="levelup-title">LEVEL 2</div>
+    <div class="levelup-sub" id="levelup-sub">You are now a Certified Procrastinator</div>
+    <button class="levelup-btn" id="levelup-btn">Keep Avoiding Work</button>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div id="toast-container"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   STARS
+════════════════════════════════════════════ */
+(function () {
+  const canvas = document.getElementById('stars-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, stars;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function initStars() {
+    stars = Array.from({ length: 160 }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.3 + .3,
+      a: Math.random(),
+      da: (Math.random() - .5) * .008,
+    }));
+  }
+
+  function drawStars() {
+    ctx.clearRect(0, 0, W, H);
+    stars.forEach(s => {
+      s.a = Math.max(.1, Math.min(1, s.a + s.da));
+      if (s.a <= .1 || s.a >= 1) s.da *= -1;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${s.a * .4})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(drawStars);
+  }
+
+  window.addEventListener('resize', () => { resize(); initStars(); });
+  resize(); initStars(); drawStars();
+})();
+
+/* ═══════════════════════════════════════════
+   DATA
+════════════════════════════════════════════ */
+const ACTIVITIES = [
+  { id: 'tiktok',    emoji: '📱', title: 'TikTok Spiral',      desc: 'Just one more video… 2 hours later',             xp: 50,  color: 'ac-cyan',   messages: ['You watched a raccoon eat a grape 47 times', 'Your For You page now only shows study-life-balance fails', 'You liked 200 videos without remembering any of them'] },
+  { id: 'snack',     emoji: '🍕', title: 'Stress Snacking',    desc: 'Can\'t think on an empty stomach (4th snack)',    xp: 30,  color: 'ac-orange', messages: ['You ate your 3rd "motivational snack"', 'Opened the fridge 7 times just to stare', 'Made a snack that was somehow also a procrastination project'] },
+  { id: 'clean',     emoji: '🧹', title: 'Sudden Cleaning',    desc: 'Never needed a clean room this badly before',     xp: 45,  color: 'ac-green',  messages: ['Reorganized your pencil collection by color AND length', 'Your room has NEVER been this clean', 'Dusted things that have never been dusted in recorded history'] },
+  { id: 'youtube',   emoji: '▶️', title: 'YouTube Rabbit Hole', desc: '"Just gonna watch a quick explainer"',            xp: 55,  color: 'ac-pink',   messages: ['You are now an expert on Roman siege weapons', 'Watched a 3-hr documentary about mayonnaise history', 'Algorithm dragged you from cooking to conspiracy in 6 clicks'] },
+  { id: 'nap',       emoji: '😴', title: '"Quick" 20min Nap',  desc: 'Set 5 alarms. Ignored all 5.',                   xp: 65,  color: 'ac-purple',  messages: ['That was not 20 minutes', 'Woke up not knowing what year it is', 'The assignment is still there. So is your regret.'] },
+  { id: 'staring',   emoji: '🌀', title: 'Stare at Blank Doc', desc: 'The cursor blinks. You blink back.',             xp: 10,  color: 'ac-cyan',   messages: ['You and the cursor are in a staring contest', 'Title entered: "Essay." Deleted. Entered again.', 'Spent 14 mins choosing the right font (doesn\'t matter)'] },
+  { id: 'memes',     emoji: '😂', title: 'Meme Research',      desc: '"This is basically studying culture"',           xp: 40,  color: 'ac-yellow',  messages: ['Sent 19 memes to the group chat at 2am', 'Created a folder called "study inspo" - it\'s all memes', 'Found a meme that perfectly describes your situation'] },
+  { id: 'playlist',  emoji: '🎵', title: 'Perfect Playlist',   desc: 'Can\'t study without the RIGHT study music',     xp: 35,  color: 'ac-orange',  messages: ['Spent 40 mins creating a playlist for 2 hrs of studying', 'Added 67 songs. Have listened to 0.', '"lofi hip hop to cry and not write your essay to"'] },
+  { id: 'texting',   emoji: '💬', title: 'Group Chat Chaos',   desc: 'Someone said something dumb. You must respond.',  xp: 45,  color: 'ac-pink',   messages: ['You are now the funniest person in the group chat', 'Sent 78 messages. The word "essay" was mentioned 0 times.', 'Group chat voted you "Least Likely to Submit on Time"'] },
+  { id: 'rewrite',   emoji: '✏️', title: 'Rewrite Your Notes', desc: 'In prettier handwriting. With colored pens.',    xp: 55,  color: 'ac-green',  messages: ['Notes are now a work of calligraphic art', 'Used 8 different highlighter colors. Still haven\'t read them.', 'Your notes look amazing. Your knowledge: unchanged.'] },
+  { id: 'research',  emoji: '🔍', title: '"Extra Research"',   desc: 'Wikipedia → Black holes → Medieval dentistry',   xp: 60,  color: 'ac-cyan',   messages: ['You now know an unsettling amount about medieval dentistry', 'Opened 47 tabs. Closed 0. RAM is weeping.', 'None of this is in your essay topic. Filed under "interesting though".'] },
+  { id: 'exercise',  emoji: '🏃', title: 'Suddenly Healthy',   desc: '"Gotta clear my head" (you never exercise)',     xp: 70,  color: 'ac-yellow',  messages: ['Did 3 pushups. Rewarded yourself with a 45min break.', 'Went for a "quick walk" that took 90 minutes', 'Your body is ready. Your essay is not.'] },
+];
+
+const ACHIEVEMENTS = [
+  { id: 'first',    icon: '🐣', name: 'First Steps',       desc: 'Do your first procrastination',  color: '#00e5ff', glow: '#00e5ff33',  req: s => s.totalActions >= 1 },
+  { id: 'napper',   icon: '💤', name: 'Power Napper',      desc: 'Take a "quick" nap',             color: '#bf7fff', glow: '#bf7fff33',  req: s => s.counts['nap'] >= 1 },
+  { id: 'chef',     icon: '🍽️', name: 'Master Chef',       desc: 'Stress-snack 5 times',           color: '#ff6b35', glow: '#ff6b3533',  req: s => s.counts['snack'] >= 5 },
+  { id: 'scholar',  icon: '📚', name: 'Reverse Scholar',   desc: 'Research everything except essay',color: '#7fff5f', glow: '#7fff5f33', req: s => s.counts['research'] >= 3 },
+  { id: 'hundred',  icon: '💯', name: 'Century Club',      desc: 'Earn 100 Procrastipoints',       color: '#ffd700', glow: '#ffd70033',  req: s => s.xp >= 100 },
+  { id: 'lvl5',     icon: '⚡', name: 'Truly Hopeless',    desc: 'Reach level 5',                  color: '#ff4fa3', glow: '#ff4fa333',  req: s => s.level >= 5 },
+  { id: 'streaker', icon: '🔥', name: 'On a Roll',         desc: 'Do 5 things in a row',          color: '#ff6b35', glow: '#ff6b3533',  req: s => s.streak >= 5 },
+  { id: 'allnite',  icon: '🌙', name: 'Night Owl',         desc: 'Let timer drop under 1 hour',    color: '#7b9fff', glow: '#7b9fff33',  req: s => s.timerSecs < 3600 },
+  { id: 'variety',  icon: '🌈', name: 'Renaissance Slacker',desc: 'Try every activity type',      color: '#bf7fff', glow: '#bf7fff33',  req: s => Object.keys(s.counts).length >= ACTIVITIES.length },
+];
+
+const LEVELS = [
+  'Total Novice',        // 1
+  'Casual Avoider',      // 2
+  'Dedicated Dodger',    // 3
+  'Professional Staller',// 4
+  'Grand Master of Not', // 5
+  'Transcendent Slacker',// 6
+  'Deity of Delay',      // 7
+];
+
+const LEVEL_EMOJIS = ['😤','😏','😎','🤡','🦥','🌚','👁️'];
+
+const ASSIGNMENTS = [
+  'a 3,000-word essay', 'a calculus final', 'a group project (you\'re doing nothing)',
+  'a coding assignment', 'a history report', 'a chemistry lab write-up',
+];
+const DUE_TIMES   = ['8 hours', '6 hours', '4 hours', '2 hours', 'tomorrow (lol)'];
+
+/* ═══════════════════════════════════════════
+   STATE
+════════════════════════════════════════════ */
+const state = {
+  xp: 0, level: 1, streak: 0, totalActions: 0,
+  counts: {},
+  productivity: 100,
+  timerSecs: 8 * 3600,
+  unlockedAchievements: new Set(),
+  feedItems: [],
+};
+
+/* ═══════════════════════════════════════════
+   RENDER ACTIVITIES
+════════════════════════════════════════════ */
+const grid = document.getElementById('activities-grid');
+ACTIVITIES.forEach(act => {
+  const card = document.createElement('div');
+  card.className = `activity-card ${act.color}`;
+  card.dataset.id = act.id;
+  card.innerHTML = `
+    <span class="card-emoji">${act.emoji}</span>
+    <div class="card-title">${act.title}</div>
+    <p class="card-desc">${act.desc}</p>
+    <div class="card-xp">+${act.xp}pts</div>
+    <div class="card-count" id="cc-${act.id}"></div>
+  `;
+  card.addEventListener('click', () => doActivity(act, card));
+  grid.appendChild(card);
+});
+
+/* ═══════════════════════════════════════════
+   RENDER ACHIEVEMENTS
+════════════════════════════════════════════ */
+const achGrid = document.getElementById('achievements-grid');
+ACHIEVEMENTS.forEach(ach => {
+  const el = document.createElement('div');
+  el.className = 'badge';
+  el.id = `ach-${ach.id}`;
+  el.style.setProperty('--badge-color', ach.color);
+  el.style.setProperty('--badge-glow', ach.glow);
+  el.innerHTML = `
+    <span class="badge-icon">${ach.icon}</span>
+    <div class="badge-info">
+      <div class="badge-name">${ach.name}</div>
+      <div class="badge-desc">${ach.desc}</div>
+    </div>
+  `;
+  achGrid.appendChild(el);
+});
+
+/* ═══════════════════════════════════════════
+   ASSIGNMENT LABEL
+════════════════════════════════════════════ */
+document.getElementById('assignment-name').textContent =
+  ASSIGNMENTS[Math.floor(Math.random() * ASSIGNMENTS.length)];
+
+/* ═══════════════════════════════════════════
+   TIMER
+════════════════════════════════════════════ */
+function formatTime(s) {
+  const h = String(Math.floor(s / 3600)).padStart(2, '0');
+  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const sec = String(s % 60).padStart(2, '0');
+  return `${h}:${m}:${sec}`;
+}
+
+const timerEl = document.getElementById('deadline-timer');
+const dueEl   = document.getElementById('due-display');
+
+setInterval(() => {
+  if (state.timerSecs > 0) {
+    state.timerSecs--;
+    timerEl.textContent = formatTime(state.timerSecs);
+    timerEl.classList.toggle('urgent', state.timerSecs < 3600);
+
+    const hrs = state.timerSecs / 3600;
+    dueEl.textContent = state.timerSecs < 60
+      ? `${state.timerSecs} seconds`
+      : hrs < 1
+        ? `${Math.ceil(state.timerSecs / 60)} minutes`
+        : `${hrs.toFixed(1)} hours`;
+
+    checkAchievements();
+  } else {
+    timerEl.textContent = 'SUBMITTED?';
+    timerEl.style.color = 'var(--accent5)';
+  }
+}, 1000);
+
+/* ═══════════════════════════════════════════
+   DO ACTIVITY
+════════════════════════════════════════════ */
+const PROD_LABELS = [
+  [90, 'Absolutely zero'],
+  [75, 'Sub-atomic levels'],
+  [55, 'Clinically negligible'],
+  [35, 'Microscopic traces'],
+  [20, 'Barely measurable'],
+  [10, 'One atom of effort'],
+  [0,  'Negative productivity'],
+];
+
+function doActivity(act, cardEl) {
+  // Update state
+  state.xp      += act.xp;
+  state.totalActions++;
+  state.streak++;
+  state.counts[act.id] = (state.counts[act.id] || 0) + 1;
+
+  // Drain productivity
+  state.productivity = Math.max(0, state.productivity - (Math.random() * 8 + 4));
+  updateProductivity();
+
+  // Timer penalty (lose 2–8 minutes per action)
+  state.timerSecs = Math.max(0, state.timerSecs - (Math.floor(Math.random() * 6 + 2) * 60));
+
+  // Update counters
+  const cc = document.getElementById(`cc-${act.id}`);
+  if (cc) cc.textContent = `×${state.counts[act.id]}`;
+
+  // Card animation
+  cardEl.classList.remove('doing');
+  void cardEl.offsetWidth;
+  cardEl.classList.add('doing');
+  setTimeout(() => cardEl.classList.remove('doing'), 400);
+
+  // Check level up
+  const newLevel = Math.min(LEVELS.length, Math.floor(state.xp / 120) + 1);
+  if (newLevel > state.level) {
+    state.level = newLevel;
+    showLevelUp();
+  }
+
+  // Add to feed
+  const msg = act.messages[Math.floor(Math.random() * act.messages.length)];
+  addFeedItem(act.emoji, msg, act.xp, act.color);
+
+  // Update stats
+  updateStats();
+
+  // Toast
+  showToast(act.emoji, `+${act.xp} Procrastipoints!`, '#ffd700', '#ffd70022');
+
+  // Achievements
+  checkAchievements();
+}
+
+/* ═══════════════════════════════════════════
+   PRODUCTIVITY
+════════════════════════════════════════════ */
+function updateProductivity() {
+  const fill = document.getElementById('prod-fill');
+  const txt  = document.getElementById('prod-text');
+  fill.style.width = state.productivity + '%';
+
+  const label = PROD_LABELS.find(([t]) => state.productivity >= t) || PROD_LABELS[PROD_LABELS.length - 1];
+  txt.textContent = label[1];
+
+  // Color gradient based on value
+  const r = Math.min(255, Math.round(255 - state.productivity * 1.2));
+  const g = Math.min(255, Math.round(state.productivity * 2));
+  fill.style.background = `linear-gradient(90deg, rgb(${r},${g},50), rgb(${255 - r/2},${g},100))`;
+}
+
+/* ═══════════════════════════════════════════
+   FEED
+════════════════════════════════════════════ */
+const COLOR_MAP = { 'ac-orange': '#ff6b35', 'ac-yellow': '#ffd700', 'ac-cyan': '#00e5ff', 'ac-pink': '#ff4fa3', 'ac-green': '#7fff5f', 'ac-purple': '#bf7fff' };
+
+function addFeedItem(emoji, msg, xp, colorClass) {
+  const feed = document.getElementById('feed');
+  const empty = document.getElementById('feed-empty');
+  if (empty) empty.remove();
+
+  const now  = new Date();
+  const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const item = document.createElement('div');
+  item.className = 'feed-item';
+  item.style.setProperty('--feed-color', COLOR_MAP[colorClass] || '#00e5ff');
+  item.innerHTML = `
+    <span class="feed-emoji">${emoji}</span>
+    <div class="feed-content">
+      <div class="feed-msg">${msg}</div>
+      <div class="feed-time">${time}</div>
+    </div>
+    <div class="feed-xp">+${xp}pts</div>
+  `;
+  feed.prepend(item);
+
+  // Keep max 30
+  while (feed.children.length > 30) feed.removeChild(feed.lastChild);
+}
+
+/* ═══════════════════════════════════════════
+   STATS
+════════════════════════════════════════════ */
+function updateStats() {
+  document.getElementById('stat-level').textContent   = state.level;
+  document.getElementById('stat-xp').textContent      = state.xp;
+  document.getElementById('stat-streak').textContent  = state.streak;
+  document.getElementById('stat-actions').textContent = state.totalActions;
+}
+
+/* ═══════════════════════════════════════════
+   ACHIEVEMENTS
+════════════════════════════════════════════ */
+function checkAchievements() {
+  ACHIEVEMENTS.forEach(ach => {
+    if (state.unlockedAchievements.has(ach.id)) return;
+    if (ach.req(state)) {
+      state.unlockedAchievements.add(ach.id);
+      const el = document.getElementById(`ach-${ach.id}`);
+      if (el) el.classList.add('unlocked');
+      showToast(ach.icon, `Achievement: ${ach.name}!`, ach.color, ach.glow);
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════
+   TOAST
+════════════════════════════════════════════ */
+function showToast(emoji, msg, color = '#ffffff', glow = 'transparent') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.style.setProperty('--toast-color', color + '55');
+  toast.style.setProperty('--toast-glow',  glow);
+  toast.innerHTML = `<span style="font-size:1.3rem">${emoji}</span><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('out');
+    setTimeout(() => toast.remove(), 400);
+  }, 2400);
+}
+
+/* ═══════════════════════════════════════════
+   LEVEL UP
+════════════════════════════════════════════ */
+function showLevelUp() {
+  const overlay = document.getElementById('levelup-overlay');
+  const title   = document.getElementById('levelup-title');
+  const sub     = document.getElementById('levelup-sub');
+  const emoji   = document.getElementById('levelup-emoji');
+
+  emoji.textContent = LEVEL_EMOJIS[state.level - 1] || '🌚';
+  title.textContent = `LEVEL ${state.level}`;
+  sub.textContent   = `You are now: ${LEVELS[state.level - 1] || LEVELS[LEVELS.length - 1]}`;
+
+  overlay.classList.add('show');
+  spawnConfetti();
+}
+
+document.getElementById('levelup-btn').addEventListener('click', () => {
+  document.getElementById('levelup-overlay').classList.remove('show');
+});
+
+/* ═══════════════════════════════════════════
+   CONFETTI
+════════════════════════════════════════════ */
+const CONFETTI_COLORS = ['#ff6b35','#ffd700','#00e5ff','#ff4fa3','#7fff5f','#bf7fff'];
+function spawnConfetti() {
+  for (let i = 0; i < 60; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.cssText = `
+      left: ${Math.random() * 100}vw;
+      background: ${CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)]};
+      --dur: ${1.8 + Math.random() * 1.5}s;
+      --delay: ${Math.random() * 0.8}s;
+      transform: rotate(${Math.random() * 360}deg);
+      width: ${6 + Math.random() * 8}px;
+      height: ${8 + Math.random() * 10}px;
+      border-radius: ${Math.random() > .5 ? '50%' : '2px'};
+    `;
+    document.body.appendChild(piece);
+    setTimeout(() => piece.remove(), 3200);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   INIT WELCOME TOAST
+════════════════════════════════════════════ */
+setTimeout(() => showToast('📝', 'Your essay isn\'t going to write itself…', '#00e5ff', '#00e5ff22'), 1200);
+setTimeout(() => showToast('🦥', '…or will it? No. No it won\'t.', '#ff4fa3', '#ff4fa322'), 3000);
+</script>
+</body>
+</html>
