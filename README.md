@@ -8,6 +8,6 @@ The apps are:
    
 3) Notepad (for office uses) : We can use notepad for office use. we can make text file or any html and save it to our own computer.
 
-4) Anti-procastinator (for the procrastinators) : Procrastinators can use this to stop their procrastination. The app is also unique that other projects on the Nexus app!
+4) Anti-procastinator (for the procrastinators) : Procrastinators can use this to stop their procrastination. The app is also unique than other projects on the Nexus app!
 
 Conclusion: I'm not gonna lie; this Nexus project is the best project i've ever build. And i'm also glad that i could make this type of project of my own. Thanks you guys for reading and enjoy the demo of the projects. Thank You ALL!!
